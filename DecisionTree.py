@@ -1,6 +1,18 @@
 
 import enum
 import math
+import sys
+import tweepy
+import json
+
+WIDE_MAP = dict((i, i + 0xFEE0) for i in range(0x21, 0x7F))
+WIDE_MAP[0x20] = 0x3000
+
+buff = ""
+
+def print_buffer(s):
+    global buff
+    buff += s + "\n"
 
 class piece(enum.Enum):
 	empty = 0
@@ -15,21 +27,22 @@ empty_board = []
 for i in range(width * height):
 	empty_board.append(piece.empty)
 
+
 def print_board(b):
 	a = 0
 	for y in range(height):
-		line = ""
+		line = "|"
 		for x in range(width):
 			a = b[(width * y) + x]
-			if (a == piece.empty): line += " "
+			if (a == piece.empty): line += "."
 			elif (a == piece.red): line += "X"
 			else: line += "0"
-		print(line)
+		print((line + "|").translate(WIDE_MAP))
 
-	line = ""
+	line = "|"
 	for x in range(width):
 		line += str(x + 1)
-	print(line)
+	print((line + "|").translate(WIDE_MAP))
 
 def check_win(b, x, y):
 
@@ -141,15 +154,12 @@ class node:
 				if (ny >= 0):
 					nb[(width * ny) + x] = turnn
 					if (check_win(nb, x, ny) == turnn):
-						if (depth == 5): print("win1", turnn)
 						nnode = node(nb, -1, turnn)
 						nnode.winner = turnn
-						if (depth == 5): print("win2", turnn)
 						self.children[x] = nnode
 					else:
 						if (nt == piece.red): nt = piece.black
 						else: nt = piece.red
-						if (depth == 5): print("switched:", nt)
 						nnode = node(nb, depth - 1, nt)
 						self.children[x] = nnode
 		else:
@@ -171,7 +181,6 @@ class node:
 		moves = []
 		for x in range(width):
 			if (self.children[x] != None):
-				print(x + 1, self.children[x].winner)
 				moves.append(sub_min(self.children[x], initial + 1))
 			else: moves.append(0)
 		imin = 0
@@ -192,14 +201,34 @@ turn = piece.red
 x = 0
 num_pieces = 1
 
+json_data = None
+
+with open("./Twitter.json") as inp:
+    json_data = json.load(inp)
+
+auth = tweepy.OAuthHandler(json_data["consumer_key"], json_data["consumer_secret"])
+auth.set_access_token(json_data["access_token"], json_data["access_secret"])
+api = tweepy.API(auth)
+
+def tweet_buffer():
+    global buff
+    if (buff != ""):
+        api.update_status(status=buff)
+        print(buff)
+        buff = ""
+
+tweet_buffer()
+
 while (game_on):
 	if (turn == piece.red): # player red
 		x = int(input("Place a piece: ")) - 1
+		tweet_buffer()
 	else: # decision tree black
 		print("bot:", turn)
 		tree = node(empty_board, 5, turn)
 		x = tree.min(turn, num_pieces)
 		print("Tree placed:", x)
+		tweet_buffer()
 
 	y = place_piece(empty_board, x)
 	if (y >= 0 and x >= 0 and x < width):
@@ -210,6 +239,7 @@ while (game_on):
 			else: turn = piece.red
 			if (check_win(empty_board, x, y) != piece.empty): game_on = False
 
+tweet_buffer()
 print("Game over!")
 
 # want while loop of finding mins and taking user input. user moves first

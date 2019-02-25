@@ -41,7 +41,7 @@ def repost_new():
         urllib.request.urlretrieve(to_submit.url, "./" + file_name)
         try:
             reddit.subreddit(sub_post).submit_image(title = to_submit.title, image_path = "./" + file_name, send_replies = False)
-            print("Sucessfuly posted to /r/" + sub_post)
+            print("Sucessfuly posted " + file_name + " to /r/" + sub_post)
         except praw.exceptions.APIException as e:
             print("Couldn't post to /r/" + sub_post)
             print(str(e))
@@ -49,7 +49,7 @@ def repost_new():
     else:
         print("No available posts from /r/" + sub_post)
 
-hours = 2
+hours = 0.5
 s = sched.scheduler(time.time, time.sleep)
 
 def repeat(sc):
@@ -57,5 +57,6 @@ def repeat(sc):
     repost_new()
     s.enter(3600 * hours, 1, repeat, (sc,))
 
+repost_new()
 s.enter(3600 * hours, 1, repeat, (s,))
 s.run()
